@@ -21,7 +21,7 @@ def help(update, context):
 
 def main():
     """Start bot"""
-    updater = Updater("", use_context=True)
+    updater = Updater("1386831448:AAEGITEUsVitfTgvRUEj0RDhGfGO2G7yvo0", use_context=True)
 
     dp = updater.dispatcher
 
