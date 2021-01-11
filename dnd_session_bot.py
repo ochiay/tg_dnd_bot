@@ -18,17 +18,17 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-
+#-
 def start(update: Update, context: CallbackContext):
     """Send a message when the command /start is issued"""
     update.message.reply_text("Dark cycles, sunlander.\nUse /help to watch available operations")
 
-
+#-
 def help(update: Update, context: CallbackContext):
     """Send a help message when the command /help is issued"""
     update.message.reply_text(
         "Commands:\n"
-        "  /create_character NAME [SURNAME]\n"
+        "  /set_name NAME [SURNAME]\n"
         "  /roll INTdINT [+INT+...+INT]\n"
         "  /help"
     )
@@ -55,7 +55,7 @@ def set_name(update: Update, context: CallbackContext):
             chat_id=update.effective_chat.id,
             text="usage: /create_character NAME [SURNAME]")
 
-    print(id_user, ' ', id_group)
+
     cursor.execute("""
     REPLACE INTO character(id_user, id_group, first_name, second_name)
     VALUES({}, {}, '{}', {});
@@ -66,11 +66,11 @@ def set_name(update: Update, context: CallbackContext):
         chat_id=id_group,
         text=f"{id_group} {id_user} {first_name} {second_name}"
     )
-
+#-
 
 def rename(update: Update, context: CallbackContext):
     pass
-
+#-
 
 def roll(update: Update, context: CallbackContext):
     """roll dice
@@ -94,7 +94,7 @@ def roll(update: Update, context: CallbackContext):
     # modifier sum
     modifier_sum = 0
     text_message = ""
-    print(modifier)
+
     if modifier:
         for el in modifier: modifier_sum += int(el)
         text_message = f" + {modifier_sum}"
@@ -105,7 +105,7 @@ def roll(update: Update, context: CallbackContext):
     dice_roll = ' + '.join(map(str, dice_roll))
     character_name = update.message.from_user.first_name
     text_message =\
-        f"{character_name} выкидывает {result} :\n"\
+        f"{character_name} have rolled {result} :\n"\
         f"({a}d{b}){text_message} :\n({dice_roll}){text_message}"
 
     context.bot.send_message(
@@ -122,7 +122,7 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
 
-    dp.add_handler(CommandHandler("create_character", create_character))
+    dp.add_handler(CommandHandler("set_name", set_name))
     dp.add_handler(CommandHandler("roll", roll))
 
     updater.start_polling()
