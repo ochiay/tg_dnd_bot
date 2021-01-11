@@ -3,13 +3,15 @@
 
 import random
 import re
+import sqlite3
 import logging
-
 
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 TG_TOKEN = '1428831437:AAG_bw6SipdV0affAUnpj-7vBPY0FYUET18'
+
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -19,19 +21,58 @@ logger = logging.getLogger(__name__)
 
 def start(update: Update, context: CallbackContext):
     """Send a message when the command /start is issued"""
-    update.message.reply_text("Dark cycles, sunlander")
+    update.message.reply_text("Dark cycles, sunlander.\nUse /help to watch available operations")
 
 
 def help(update: Update, context: CallbackContext):
     """Send a help message when the command /help is issued"""
     update.message.reply_text(
         "Commands:\n"
-        "  /roll : <int>d<int>+<int>...+<int>\n"
-        "  /help : output this message"
+        "  /create_character NAME [SURNAME]\n"
+        "  /roll INTdINT [+INT+...+INT]\n"
+        "  /help"
     )
 
 #-------------------------------------------------------------------------------
-def roll(update:Update, context: CallbackContext):
+def set_name(update: Update, context: CallbackContext):
+    connection = None
+    try:
+        connection = sqlite3.connect("./dnd_session.db")
+    except Error as e:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=e)
+
+    cursor = connection.cursor()
+    id_user = id_group = first_name = second_name = 0
+    try:
+        id_user = update.effective_user.id
+        id_group = update.effective_chat.id
+        first_name = '"{}"'.format(context.args[0])
+        second_name = '"{}"'.format(context.args[1]) if len(context.args) > 1 else '""'
+    except IndexError:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="usage: /create_character NAME [SURNAME]")
+
+    print(id_user, ' ', id_group)
+    cursor.execute("""
+    REPLACE INTO character(id_user, id_group, first_name, second_name)
+    VALUES({}, {}, '{}', {});
+    """.format(id_user, id_group, first_name, second_name))
+    connection.commit()
+    connection.close()
+    context.bot.send_message(
+        chat_id=id_group,
+        text=f"{id_group} {id_user} {first_name} {second_name}"
+    )
+
+
+def rename(update: Update, context: CallbackContext):
+    pass
+
+
+def roll(update: Update, context: CallbackContext):
     """roll dice
     /roll <a:int>d<b:int>+<modifier[0]:int>...+<modifier[n]int>
         a, b : floor and ceiling for random.randint
@@ -39,10 +80,8 @@ def roll(update:Update, context: CallbackContext):
     """
 
     # prepare string
-
     text = ''.join(context.args)
     regexp = re.compile('^(?P<dice>\\d+d\\d+)(?P<modifier>([\+-]\d+)*)?$');
-
     temporary = regexp.match(text)
 
     a, b = temporary['dice'].split('d')
@@ -82,6 +121,8 @@ def main():
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
+
+    dp.add_handler(CommandHandler("create_character", create_character))
     dp.add_handler(CommandHandler("roll", roll))
 
     updater.start_polling()
