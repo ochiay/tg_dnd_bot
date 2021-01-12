@@ -21,9 +21,16 @@ logger = logging.getLogger(__name__)
 #-
 def start(update: Update, context: CallbackContext):
     """Send a message when the command /start is issued"""
-    update.message.reply_text("Dark cycles, sunlander.\nUse /help to watch available operations")
+
+    #group = update.effective_chat.title
+
+    update.message.reply_text("Dark cycles, sunlander.\n"
+                              "Use /help to watch available operations")
 
 #-
+def dex(update:  Update, context: CallbackContext):
+
+
 def help(update: Update, context: CallbackContext):
     """Send a help message when the command /help is issued"""
     update.message.reply_text(
@@ -32,6 +39,22 @@ def help(update: Update, context: CallbackContext):
         "  /roll INTdINT [+INT+...+INT]\n"
         "  /help"
     )
+
+#-
+
+def connect_db(function):
+    connection = None
+    connection = None
+    try:
+        connection = sqlite3.connect("./dnd_session.db")
+    except Error as e:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=e)
+    connection.cursor()
+
+    function()
+
 
 #-------------------------------------------------------------------------------
 def set_name(update: Update, context: CallbackContext):
@@ -44,6 +67,7 @@ def set_name(update: Update, context: CallbackContext):
             text=e)
 
     cursor = connection.cursor()
+
     id_user = id_group = first_name = second_name = 0
     try:
         id_user = update.effective_user.id
@@ -55,11 +79,13 @@ def set_name(update: Update, context: CallbackContext):
             chat_id=update.effective_chat.id,
             text="usage: /create_character NAME [SURNAME]")
 
+    sql_instruction =\
+        "REPLACE INTO character(id_user, id_group, first_name, second_name)"\
+        "VALUES(%s, %s, %s, %s)"
+    sql_variables = (id_user, id_group, first_name, second_name,)
+    print("huyak")
 
-    cursor.execute("""
-    REPLACE INTO character(id_user, id_group, first_name, second_name)
-    VALUES({}, {}, '{}', {});
-    """.format(id_user, id_group, first_name, second_name))
+    cursor.execute(sql_instruction, sql_variables)
     connection.commit()
     connection.close()
     context.bot.send_message(
