@@ -44,7 +44,7 @@ def help(update: Update, context: CallbackContext):
 
 def connect_db(function):
     connection = None
-    connection = None
+
     try:
         connection = sqlite3.connect("./dnd_session.db")
     except Error as e:
@@ -53,7 +53,12 @@ def connect_db(function):
             text=e)
     connection.cursor()
 
-    function()
+    variables, variables = function();
+
+    connection.execute(instruction, variables)
+    connection.commit()
+    connection.close()
+    return wrapper
 
 
 #-------------------------------------------------------------------------------
@@ -85,13 +90,11 @@ def set_name(update: Update, context: CallbackContext):
     sql_variables = (id_user, id_group, first_name, second_name,)
     print("huyak")
 
-    cursor.execute(sql_instruction, sql_variables)
-    connection.commit()
-    connection.close()
     context.bot.send_message(
         chat_id=id_group,
-        text=f"{id_group} {id_user} {first_name} {second_name}"
+        text=f"{first_name} {second_name}"
     )
+    return ()
 #-
 
 def rename(update: Update, context: CallbackContext):
