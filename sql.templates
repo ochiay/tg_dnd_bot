@@ -12,5 +12,16 @@ CREATE TABLE IF NOT EXISTS "character"(
        "wis" integer ,
        "cha" integer ,
        PRIMARY KEY (id_user, id_group),
+       "str" integer ,
+       "con" integer ,
+       "dex" integer ,
+       "int" integer ,
+       "wis" integer ,
+       "cha" integer ,
+       PRIMARY KEY (id_user, id_group),
        FOREIGN KEY (id_race) REFERENCES race (id_race) ON DELETE SET NULL,
        FOREIGN KEY (id_class) REFERENCES class (id_class) on DELETE SET NULL);
+CREATE TABLE IF NOT EXISTS "race"(
+       id_race PRIMARY KEY,
+       value TEXT NOT NULL
+)

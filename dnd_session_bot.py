@@ -11,14 +11,16 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 TG_TOKEN = '1428831437:AAG_bw6SipdV0affAUnpj-7vBPY0FYUET18'
 
-
 # Enable logging
+#-------------------------------------------------------------------------------
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-#-
+#-------------------------------------------------------------------------------
+
 def start(update: Update, context: CallbackContext):
     """Send a message when the command /start is issued"""
 
@@ -27,9 +29,12 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_text("Dark cycles, sunlander.\n"
                               "Use /help to watch available operations")
 
-#-
-def dex(update:  Update, context: CallbackContext):
+#-------------------------------------------------------------------------------
 
+def dex(update:  Update, context: CallbackContext):
+    pass
+
+#-------------------------------------------------------------------------------
 
 def help(update: Update, context: CallbackContext):
     """Send a help message when the command /help is issued"""
@@ -40,66 +45,99 @@ def help(update: Update, context: CallbackContext):
         "  /help"
     )
 
-#-
+#-------------------------------------------------------------------------------
 
 def connect_db(function):
-    connection = None
 
-    try:
-        connection = sqlite3.connect("./dnd_session.db")
-    except Error as e:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=e)
-    connection.cursor()
+    def wrapper(update: Update, context: CallbackContext):
+        connection = None
 
-    variables, variables = function();
+        try:
+            connection = sqlite3.connect("./dnd_session.db")
+        except Error as e:
+            context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=e)
+        #
+        cursor = connection.cursor()
 
-    connection.execute(instruction, variables)
-    connection.commit()
-    connection.close()
+        try:
+            function(update, context, cursor)
+        except ValueError:
+            print("vse` kon4ilos' huevo")
+        connection.commit()
+        connection.close()
+        return function
+
     return wrapper
 
-
 #-------------------------------------------------------------------------------
-def set_name(update: Update, context: CallbackContext):
-    connection = None
-    try:
-        connection = sqlite3.connect("./dnd_session.db")
-    except Error as e:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=e)
 
-    cursor = connection.cursor()
-
+@connect_db
+def me(update: Update, context: CallbackContext, cursor):
     id_user = id_group = first_name = second_name = 0
     try:
         id_user = update.effective_user.id
         id_group = update.effective_chat.id
-        first_name = '"{}"'.format(context.args[0])
-        second_name = '"{}"'.format(context.args[1]) if len(context.args) > 1 else '""'
+        id_message = update.effective_message.message_id
+
     except IndexError:
         context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="usage: /create_character NAME [SURNAME]")
+            text="usage: /me")
 
-    sql_instruction =\
-        "REPLACE INTO character(id_user, id_group, first_name, second_name)"\
-        "VALUES(%s, %s, %s, %s)"
-    sql_variables = (id_user, id_group, first_name, second_name,)
-    print("huyak")
-
+    instruction =\
+        """
+        SELECT first_name, second_name FROM character
+        WHERE id_user==? AND id_group==?;
+        """
+    variables = (id_user, id_group)
+    cursor.execute(instruction, variables);
+    character = cursor.fetchone();
+    character = ' '.join([name for name in character if name])
     context.bot.send_message(
-        chat_id=id_group,
-        text=f"{first_name} {second_name}"
+        chat_id = id_group,
+        text = f"""You've remembered that you are {character}""",
+        reply_to_message_id=id_message
     )
-    return ()
-#-
+    return false
 
-def rename(update: Update, context: CallbackContext):
-    pass
-#-
+#-------------------------------------------------------------------------------
+
+@connect_db
+def set_name(update: Update, context: CallbackContext, cursor):
+    """create or replace your character name.
+    You have one character per session"""
+    id_user = id_group = first_name = second_name = 0
+    try:
+        id_user = update.effective_user.id
+        id_group = update.effective_chat.id
+        first_name = f'{context.args[0]}'
+        second_name = f'{context.args[1]}' if len(context.args) > 1 else None
+    except IndexError:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="usage: /set_name NAME [SURNAME]")
+        return True
+
+    instruction =\
+        '''
+        REPLACE INTO character(id_user, id_group, first_name, second_name)
+        VALUES(?, ?, ?, ?)
+        '''
+
+    variables = (id_user, id_group, first_name, second_name,)
+
+    cursor.execute(instruction, variables)
+    second_name = ' ' + second_name if second_name else ''
+    answer = f'''{first_name}{second_name} was born'''
+    context.bot.send_message(
+        chat_id = update.effective_chat.id,
+        text = answer);
+
+    return False
+
+#-------------------------------------------------------------------------------
 
 def roll(update: Update, context: CallbackContext):
     """roll dice
@@ -142,6 +180,7 @@ def roll(update: Update, context: CallbackContext):
         text=text_message)
 
 #-------------------------------------------------------------------------------
+
 def main():
     """Start bot"""
     updater = Updater(TG_TOKEN, use_context=True)
@@ -151,6 +190,7 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help))
 
+    dp.add_handler(CommandHandler("me", me))
     dp.add_handler(CommandHandler("set_name", set_name))
     dp.add_handler(CommandHandler("roll", roll))
 
@@ -158,6 +198,7 @@ def main():
 
     updater.idle()
 
+#-------------------------------------------------------------------------------
 
 if __name__ == '__main__':
     main()
