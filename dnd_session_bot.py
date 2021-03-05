@@ -8,6 +8,15 @@ import logging
 
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from enum import IntEnum, auto
+
+class Stats(IntEnum):
+    _str = auto()
+    _dex = auto()
+    _con = auto()
+    _int = auto()
+    _wis = auto()
+    _cha = auto()
 
 TG_TOKEN = '1428831437:AAG_bw6SipdV0affAUnpj-7vBPY0FYUET18'
 
@@ -29,10 +38,6 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_text("Dark cycles, sunlander.\n"
                               "Use /help to watch available operations")
 
-#-------------------------------------------------------------------------------
-
-def dex(update:  Update, context: CallbackContext):
-    pass
 
 #-------------------------------------------------------------------------------
 
@@ -63,8 +68,8 @@ def connect_db(function):
 
         try:
             function(update, context, cursor)
-        except ValueError:
-            print("vse` kon4ilos' huevo")
+        except ValueError as e:
+            print("vse` kon4ilos' huevo", e)
         connection.commit()
         connection.close()
         return function
@@ -76,6 +81,7 @@ def connect_db(function):
 @connect_db
 def me(update: Update, context: CallbackContext, cursor):
     id_user = id_group = first_name = second_name = 0
+
     try:
         id_user = update.effective_user.id
         id_group = update.effective_chat.id
@@ -88,19 +94,56 @@ def me(update: Update, context: CallbackContext, cursor):
 
     instruction =\
         """
-        SELECT first_name, second_name FROM character
+        SELECT first_name, second_name, str, dex, con, int, wis, cha FROM character
         WHERE id_user==? AND id_group==?;
         """
     variables = (id_user, id_group)
     cursor.execute(instruction, variables);
     character = cursor.fetchone();
+    stats = character[-6:]
+    character = character[:2]
     character = ' '.join([name for name in character if name])
+    answer =\
+        f"""\
+        You've remembered that you are {character}
+  Strength     : {stats[0]}
+  Dexterity    : {stats[1]}
+  Constitution : {stats[2]}
+  Intelligence : {stats[3]}
+  Wisdom       : {stats[4]}
+  Charisma     : {stats[5]}
+        """
+
     context.bot.send_message(
         chat_id = id_group,
-        text = f"""You've remembered that you are {character}""",
+        text = answer,
         reply_to_message_id=id_message
     )
-    return false
+    return False
+
+#-------------------------------------------------------------------------------
+
+@connect_db
+def dex(update:  Update, context: CallbackContext, cursor):
+    instruction =\
+        """SELECT dex FROM character WHERE (id_user = ?) and (id_group = ?);"""
+    variables = (update.effective_user.id, update.effective_chat.id)
+    cursor.execute(instruction, variables)
+
+    _dex = int(cursor.fetchone()[0])
+    _dex = (_dex - 10) // 2
+    dice_roll = [random.randint(1,20) + _dex]
+    answer =\
+        f"""
+        dexterity check : { dice_roll } (1d20) {_dex:+}
+        """
+    context.bot.send_message(
+        chat_id             = update.effective_chat.id,
+        text                = answer,
+        reply_to_message_id = update.effective_message.message_id
+    )
+
+    return False
 
 #-------------------------------------------------------------------------------
 
@@ -180,6 +223,32 @@ def roll(update: Update, context: CallbackContext):
         text=text_message)
 
 #-------------------------------------------------------------------------------
+@connect_db
+def set_stats(update: Update, context: CallbackContext, cursor):
+    id_user = update.effective_user.id
+    id_group = update.effective_chat.id
+    if (len(context.args) != 6):
+        text =\
+            "A character has 6 stats: str, dex, con, int, wis, cha\n"\
+            "The order is important"
+        context.bot.send_message(
+            chat_id = update.effective_chat.id,
+            text = text)
+
+    instruction =\
+        '''
+        UPDATE  character SET str = ?, dex = ?, con = ?, int = ?, wis = ?, cha = ?
+        WHERE (id_user == ?) and (id_group = ?);
+        '''
+
+    variables = ([*context.args, id_user, id_group])
+    print(variables)
+    cursor.execute(instruction, variables)
+    answer = "You look a bit different."
+    context.bot.send_message(
+        chat_id = id_group,
+        text = answer,
+        reply_to_message_id = update.effective_message.message_id)
 
 def main():
     """Start bot"""
@@ -193,7 +262,8 @@ def main():
     dp.add_handler(CommandHandler("me", me))
     dp.add_handler(CommandHandler("set_name", set_name))
     dp.add_handler(CommandHandler("roll", roll))
-
+    dp.add_handler(CommandHandler("set_stats", set_stats))
+    dp.add_handler(CommandHandler("dex", dex))
     updater.start_polling()
 
     updater.idle()
