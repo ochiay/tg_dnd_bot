@@ -79,6 +79,21 @@ def connect_db(function):
 #-------------------------------------------------------------------------------
 
 @connect_db
+def join(update: Update, context: CallbackContext, cursor):
+    id_user = update.effective_user.id
+    id_group = update.effective_chat.id
+    id_message = update.effective_message.message_id
+
+    instruction =\
+        """INSERT INTO character(id_user, id_group) VALUES(?, ?)"""
+    variables = (id_user, id_group)
+    cursor.execute(instruction, variables)
+    context.bot.send_message(
+        chat_id = update.effective_user.id,
+        text = u''
+    )
+#-------------------------------------------------------------------------------
+@connect_db
 def me(update: Update, context: CallbackContext, cursor):
     id_user = id_group = first_name = second_name = 0
 
