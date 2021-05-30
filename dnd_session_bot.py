@@ -45,7 +45,10 @@ def help(update: Update, context: CallbackContext):
     """Send a help message when the command /help is issued"""
     update.message.reply_text(
         "Commands:\n"
+        "  /join"
         "  /set_name NAME [SURNAME]\n"
+        "  /set_stats STR DEX CON INT WIS CHA\n"
+        "  /str, /dex, /con, /int, /wis, /cha\n"
         "  /roll INTdINT [+INT+...+INT]\n"
         "  /help"
     )
@@ -78,8 +81,14 @@ def connect_db(function):
 
 #-------------------------------------------------------------------------------
 
+# def get_stats(function):
+
+#     def wrapper(update: Update, context: CallbackContext):
+
+
 @connect_db
 def join(update: Update, context: CallbackContext, cursor):
+    '''join -- register character/bot user'''
     id_user = update.effective_user.id
     id_group = update.effective_chat.id
     id_message = update.effective_message.message_id
@@ -92,9 +101,14 @@ def join(update: Update, context: CallbackContext, cursor):
         chat_id = update.effective_user.id,
         text = u''
     )
+
 #-------------------------------------------------------------------------------
 @connect_db
 def me(update: Update, context: CallbackContext, cursor):
+    """me -- character info"""
+    #print( "bot_data", context.user_data )
+    #print("effective message", update.effective_message)
+    print(context.job)
     id_user = id_group = first_name = second_name = 0
 
     try:
@@ -113,8 +127,8 @@ def me(update: Update, context: CallbackContext, cursor):
         WHERE id_user==? AND id_group==?;
         """
     variables = (id_user, id_group)
-    cursor.execute(instruction, variables);
-    character = cursor.fetchone();
+    cursor.execute(instruction, variables)
+    character = cursor.fetchone()
     stats = character[-6:]
     character = character[:2]
     character = ' '.join([name for name in character if name])
@@ -139,26 +153,22 @@ def me(update: Update, context: CallbackContext, cursor):
 #-------------------------------------------------------------------------------
 
 @connect_db
-def dex(update:  Update, context: CallbackContext, cursor):
+def get_stat(update: Update, context: CallbackContext, cursor):
+    stat = update.message.text[1:]
+    print(stat)
     instruction =\
-        """SELECT dex FROM character WHERE (id_user = ?) and (id_group = ?);"""
+        f"""SELECT {stat} FROM character WHERE (id_user = ?) and (id_group = ?);"""
     variables = (update.effective_user.id, update.effective_chat.id)
     cursor.execute(instruction, variables)
-
-    _dex = int(cursor.fetchone()[0])
-    _dex = (_dex - 10) // 2
-    dice_roll = [random.randint(1,20) + _dex]
-    answer =\
-        f"""
-        dexterity check : { dice_roll } (1d20) {_dex:+}
-        """
+    stat_value = (int(cursor.fetchone()[0]) - 10) // 2
+    dice_roll = [random.randint(1,20)+ stat_value]
+    answer = \
+        f"""{stat} check : {dice_roll} (1d20) {stat_value:+}"""
     context.bot.send_message(
-        chat_id             = update.effective_chat.id,
-        text                = answer,
-        reply_to_message_id = update.effective_message.message_id
+        chat_id=update.effective_chat.id,
+        text=answer,
+        reply_to_message_id=update.effective_message.message_id
     )
-
-    return False
 
 #-------------------------------------------------------------------------------
 
@@ -191,7 +201,7 @@ def set_name(update: Update, context: CallbackContext, cursor):
     answer = f'''{first_name}{second_name} was born'''
     context.bot.send_message(
         chat_id = update.effective_chat.id,
-        text = answer);
+        text = answer)
 
     return False
 
@@ -206,7 +216,7 @@ def roll(update: Update, context: CallbackContext):
 
     # prepare string
     text = ''.join(context.args)
-    regexp = re.compile('^(?P<dice>\\d+d\\d+)(?P<modifier>([\+-]\d+)*)?$');
+    regexp = re.compile('^(?P<dice>\\d+d\\d+)(?P<modifier>([\+-]\d+)*)?$')
     temporary = regexp.match(text)
 
     a, b = temporary['dice'].split('d')
@@ -242,14 +252,15 @@ def roll(update: Update, context: CallbackContext):
 def set_stats(update: Update, context: CallbackContext, cursor):
     id_user = update.effective_user.id
     id_group = update.effective_chat.id
-    if (len(context.args) != 6):
+    if len(context.args) != 6:
         text =\
+            "/set_stats [str] [dex] [con] [int] [wis] [cha]\n"\
             "A character has 6 stats: str, dex, con, int, wis, cha\n"\
             "The order is important"
         context.bot.send_message(
             chat_id = update.effective_chat.id,
             text = text)
-
+        return
     instruction =\
         '''
         UPDATE  character SET str = ?, dex = ?, con = ?, int = ?, wis = ?, cha = ?
@@ -278,7 +289,14 @@ def main():
     dp.add_handler(CommandHandler("set_name", set_name))
     dp.add_handler(CommandHandler("roll", roll))
     dp.add_handler(CommandHandler("set_stats", set_stats))
-    dp.add_handler(CommandHandler("dex", dex))
+    dp.add_handler(CommandHandler("dex", get_stat))
+    dp.add_handler(CommandHandler("str", get_stat))
+    dp.add_handler(CommandHandler("int", get_stat))
+    dp.add_handler(CommandHandler("con", get_stat))
+    dp.add_handler(CommandHandler("wis", get_stat))
+    dp.add_handler(CommandHandler("cha", get_stat))
+    
+
     updater.start_polling()
 
     updater.idle()
