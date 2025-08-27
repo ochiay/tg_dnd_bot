@@ -18,7 +18,7 @@ class Stats(IntEnum):
     _wis = auto()
     _cha = auto()
 
-TG_TOKEN = '1428831437:AAG_bw6SipdV0affAUnpj-7vBPY0FYUET18'
+#TG_TOKEN = os.getenv or something
 
 # Enable logging
 #-------------------------------------------------------------------------------
